@@ -50,6 +50,30 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    EVENT_FILES = ["attacks", "incidents", "agents", "approval_requests",
+                   "approval_decisions", "call"]
+
+    def do_GET(self):
+        # single-request event bundle — keeps remote/tunnel polling cheap
+        if self.path.split("?")[0] == "/api/events":
+            out = {}
+            for name in self.EVENT_FILES:
+                lines = []
+                try:
+                    with open(os.path.join(ROOT, "events", name + ".jsonl")) as f:
+                        for l in f:
+                            l = l.strip()
+                            if l:
+                                try:
+                                    lines.append(json.loads(l))
+                                except Exception:
+                                    pass
+                except OSError:
+                    pass
+                out[name] = lines
+            return self._json(200, out)
+        return super().do_GET()
+
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")

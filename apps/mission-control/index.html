@@ -836,7 +836,19 @@ document.getElementById("audioToggle").addEventListener("click", function () {
 
 /* ---------- poll loop ---------- */
 async function poll() {
-  const [attacks, incidents, agents, reqs, decs, calls] = await Promise.all(FILES.map(fetchJsonl));
+  // one bundled request when the demo API is up (cheap through the tunnel);
+  // per-file JSONL fetch as fallback for plain static hosting
+  let attacks, incidents, agents, reqs, decs, calls;
+  const bundle = await fetch("/api/events", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  if (bundle) {
+    S.lastFetchOk = Date.now();
+    attacks = bundle.attacks || []; incidents = bundle.incidents || [];
+    agents = bundle.agents || []; reqs = bundle.approval_requests || [];
+    decs = bundle.approval_decisions || []; calls = bundle.call || [];
+  } else {
+    [attacks, incidents, agents, reqs, decs, calls] = await Promise.all(FILES.map(fetchJsonl));
+  }
   S.attacks = attacks;
   S.incidents = indexLatest(incidents, "id");
   S.agents = agents;
