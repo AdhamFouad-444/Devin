@@ -114,22 +114,30 @@ Yes → deploy. No/unclear → exception queue. Transcript + decision + outcome 
 | D7 | Demo run + recording | Live attack wave incl. a patch-with-phone-approval sequence; recorded fallback |
 | D8 | Adoption roadmap | Pilot path for a real entity: SIEM/EDR integration, sovereign deployment, HITL policy |
 
-## 6. Workstreams & Timeline
+## 6. Workstreams & Timeline — 2-Hour Sprint (the event build)
 
-Event format unconfirmed — both variants retained. Effort in focused hours.
+**Constraint: the whole thing is built in 2 hours — by a swarm of Devin sessions.** The build itself is the demo's proof: "the swarm builds the swarm."
 
-| Phase | Workstream | 1-day hackathon | Multi-week |
-|---|---|---|---|
-| 0 | Pre-work: mock portal scaffold, Devin API keys, scenario list | Pre-event (3 hrs) | Week 0 |
-| 1 | Target portal + seeded vulns + logging | Hours 0–4 | Week 1 |
-| 2 | Attack generator + detection signals | Hours 2–6 (parallel) | Week 1–2 |
-| 3 | Swarm controller: incident pipeline + sentinel/triage/contain agents | Hours 4–8 | Week 2 |
-| 4 | Patch-agent pipeline + self-healing ⭐ | Hours 6–10 (parallel) | Week 2–3 |
-| 5 | Mission Control + 2D threat map | Hours 6–10 (parallel) | Week 3 |
-| 6 | Voice escalation channel ☎ | Hours 8–10 (parallel) | Week 3 |
-| 7 | Full attack-wave demo run, rehearsal, wrap | Hours 10–12 | Week 3–4 |
+| T | What happens | Who |
+|---|---|---|
+| T+0 | Scaffold lands on `falcon-shield` branch: contracts (`contracts/README.md` — JSONL event bus, ports, schemas), mock portal with seeded vulns, stubs | Director (1 Devin session) |
+| T+0–T+75 | **6 parallel agent sessions** build components, each PR'ing into `falcon-shield`: mission-control dashboard (+2D threat map + call UI), attack generator, incident detector, swarm controller (spawns real Devin patch-agents via `POST /v1/sessions`), voice escalation, pitch deck + demo script | Agent swarm |
+| T+75–T+105 | Merge PRs, wire the loop, end-to-end dry run: attack → detect → contain → patch session → approval call → verify | Director |
+| T+105–T+120 | Rehearse demo narrative, record fallback video, final metrics | Director |
 
-**Team model (meta-demo):** 1 human director + a swarm of Devin sessions building components in parallel.
+**Vertical-slice rule:** the must-work loop is *attack → incident → containment → patch → approval → re-attack fails*. Everything else (extra scenarios, map polish, real telephony) is stretch. The dashboard falls back to mock data if any component is late — file-bus contracts keep components independent.
+
+## 6b. Extended timelines (if more runway exists)
+
+| Phase | Workstream | Multi-week |
+|---|---|---|
+| 1 | Target portal + seeded vulns + logging | Week 1 |
+| 2 | Attack generator + detection signals | Week 1–2 |
+| 3 | Swarm controller: incident pipeline + agent roles | Week 2 |
+| 4 | Patch-agent pipeline + self-healing ⭐ | Week 2–3 |
+| 5 | Mission Control + 2D threat map | Week 3 |
+| 6 | Voice escalation channel ☎ | Week 3 |
+| 7 | Full attack-wave demo run, rehearsal, wrap | Week 3–4 |
 
 ## 7. Governance, Risk & Responsible AI
 
