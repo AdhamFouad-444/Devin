@@ -37,12 +37,12 @@ TIMEOUT = 5
 # Mirror of FAKE_GEO in apps/portal/app.py — spoofed origins MUST come from
 # this table or the portal's geo lookup (and the map arcs) won't resolve.
 FAKE_GEO = {
-    "10.7.0.11": [55.27, 25.20, "Dubai (simulated)"],
+    "10.7.0.11": [25.20, 55.27, "Dubai (simulated)"],
     "10.7.0.23": [24.45, 54.38, "Abu Dhabi (simulated)"],
-    "10.7.0.42": [103.82, 1.35, "Singapore (simulated)"],
-    "10.7.0.66": [37.62, 55.75, "Moscow (simulated)"],
-    "10.7.0.99": [-0.13, 51.50, "London (simulated)"],
-    "10.7.0.5": [139.69, 35.69, "Tokyo (simulated)"],
+    "10.7.0.42": [1.35, 103.82, "Singapore (simulated)"],
+    "10.7.0.66": [55.75, 37.62, "Moscow (simulated)"],
+    "10.7.0.99": [51.50, -0.13, "London (simulated)"],
+    "10.7.0.5": [35.69, 139.69, "Tokyo (simulated)"],
 }
 
 # scenario -> spoofed origin. Each scenario gets a different fake city so the
