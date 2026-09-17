@@ -726,8 +726,8 @@ function updateCallUI() {
   const phone = document.getElementById("phone");
   const banner = document.getElementById("callBanner");
 
-  if (S.activeCall && !ringing && S.activeCall !== ringing && !S.callAnswered) {
-    // call vanished / decided externally
+  if (S.activeCall && S.activeCall !== ringing) {
+    // call decided externally or replaced — always dismiss, even mid-answer
     closeCall();
   }
   if (!S.activeCall && ringing) {
@@ -736,6 +736,9 @@ function updateCallUI() {
     phone.className = "phone ringing";
     document.getElementById("callState").textContent = "INCOMING CALL";
     document.getElementById("callScript").textContent = "“" + callScriptFor(ringing) + "”";
+    const act = (S.approvals.get(ringing) || {}).latest?.action || "";
+    document.getElementById("btnYes").textContent =
+      "YES — " + (act === "deploy_patch" ? "DEPLOY" : act === "block_range" ? "BLOCK" : act === "isolate_service" ? "ISOLATE" : "APPROVE");
     modal.classList.add("show");
     if (!S.spoken.has(ringing)) { S.spoken.add(ringing); speak("Incoming call from Falcon Shield. " + callScriptFor(ringing)); }
   }
@@ -787,7 +790,7 @@ function voiceDecision(decision) {
   postDecision(aid, decision, "voice");
   const phone = document.getElementById("phone");
   phone.className = "phone ended";
-  document.getElementById("callState").textContent = decision === "approved" ? "DEPLOY AUTHORIZED" : "REQUEST DENIED";
+  document.getElementById("callState").textContent = decision === "approved" ? "APPROVED" : "REQUEST DENIED";
   document.getElementById("endMsg").textContent = "DECISION LOGGED — CALL ENDED";
   speak(decision === "approved" ? "Confirmed. Deploying patch." : "Understood. Escalating to exception queue.");
   setTimeout(closeCall, 1800);
