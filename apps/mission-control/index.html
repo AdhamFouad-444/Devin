@@ -180,6 +180,42 @@
 
   .empty { padding: 12px; color: #454e55; font-size: 10px; letter-spacing: .14em; }
 
+  /* feed tables — dense console data */
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .tbl thead th {
+    text-align: left; font-size: 8px; letter-spacing: .16em; font-weight: 400;
+    color: #4d565e; padding: 4px 10px 3px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg-panel); z-index: 2;
+  }
+  .tbl td { padding: 4px 10px; border-bottom: 1px solid #1a1e22; vertical-align: baseline; white-space: nowrap; }
+  .tbl tbody tr:hover { background: #1c2125; }
+  tr.fresh td { animation: freshrow 2s ease-out; }
+  td.ts { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  td.kind { color: #e4e9ec; font-weight: 700; letter-spacing: .05em; }
+  td.sev { font-size: 8px; letter-spacing: .12em; font-weight: 700; }
+  td.sev.high { color: var(--red); } td.sev.med { color: var(--amber); } td.sev.low { color: var(--cyan); }
+  td.st { font-weight: 700; font-size: 8px; letter-spacing: .1em; }
+  .st-open { color: var(--red); } .st-triaged { color: var(--amber); }
+  .st-contained { color: var(--cyan); } .st-patch_pr { color: var(--purple); }
+  .st-patched, .st-verified { color: var(--green); } .st-escalated { color: var(--orange); }
+  td.ip { color: var(--text-dim); }
+  td.id { color: #4d565e; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  td.id a { color: var(--cyan); text-decoration: none; }
+  td.id a:hover { text-decoration: underline; }
+  tr.ir { cursor: pointer; }
+  td.role { font-size: 8px; font-weight: 700; letter-spacing: .1em; }
+  td.action { color: var(--text); white-space: normal; overflow-wrap: anywhere; }
+
+  /* bottom status bar */
+  #statusbar {
+    flex: none; height: 24px; display: flex; align-items: center; gap: 20px;
+    padding: 0 14px; border-top: 2px solid var(--border); background: var(--bg-panel);
+    font-size: 9px; letter-spacing: .14em; color: var(--text-dim);
+  }
+  #statusbar b { color: var(--green); font-weight: 400; }
+  #statusbar b.warn { color: var(--amber); }
+  #statusbar .r { margin-left: auto; color: #454e55; }
+
   /* approvals — caution-bordered flat card */
   .appr {
     margin: 8px; padding: 9px 11px; border: 1px solid var(--border-glow);
@@ -198,59 +234,14 @@
   .btn-approve { background: rgba(87,166,87,.14); color: var(--green); border-color: rgba(87,166,87,.45); }
   .btn-deny { background: rgba(224,82,77,.10); color: var(--red); border-color: rgba(224,82,77,.45); }
 
-  /* incidents — log rows */
-  .inc {
-    padding: 7px 12px; border-bottom: 1px solid #1e2327; cursor: pointer;
-    border-left: 3px solid transparent;
-  }
-  .inc:nth-child(even) { background: rgba(255,255,255,.015); }
-  .inc:hover { background: #1c2125; }
-  .inc.sev-high { border-left-color: var(--red); }
-  .inc.sev-med { border-left-color: var(--amber); }
-  .inc.sev-low { border-left-color: var(--cyan); }
-  .inc.fresh { animation: freshrow 2s ease-out; }
+  /* incident/agent feed coloring is table-driven above */
   @keyframes freshrow { 0% { background: rgba(224,82,77,.18); } }
-  .inc .row1 { display: flex; align-items: baseline; gap: 8px; }
-  .inc .row1 .ts { font-size: 9px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-  .inc .kind { font-weight: 700; font-size: 11px; color: #e4e9ec; letter-spacing: .06em; text-transform: uppercase; }
-  .sev { font-size: 8px; letter-spacing: .14em; padding: 1px 5px; font-weight: 700; border: 1px solid; }
-  .sev.high { color: var(--red); border-color: var(--red); }
-  .sev.med { color: var(--amber); border-color: var(--amber); }
-  .sev.low { color: var(--cyan); border-color: var(--cyan); }
-  .chip {
-    margin-left: auto; font-size: 8px; letter-spacing: .12em; padding: 2px 6px;
-    font-weight: 700; white-space: nowrap; border: 1px solid;
-  }
-  .chip.open { color: var(--red); border-color: var(--red); background: rgba(224,82,77,.10); }
-  .chip.triaged { color: var(--amber); border-color: var(--amber); background: rgba(201,162,39,.08); }
-  .chip.contained { color: var(--cyan); border-color: var(--cyan); background: rgba(127,168,201,.08); }
-  .chip.patch_pr { color: var(--purple); border-color: var(--purple); background: rgba(157,143,199,.08); }
-  .chip.patched, .chip.verified { color: var(--green); border-color: var(--green); background: rgba(87,166,87,.10); }
-  .chip.escalated { color: var(--orange); border-color: var(--orange); background: rgba(207,122,66,.08); }
-  .inc .ev { margin-top: 4px; font-size: 10px; color: var(--text-dim);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .inc .row2 { margin-top: 4px; display: flex; gap: 10px; font-size: 9px; color: #4d565e; align-items: center; }
-  .inc .row2 a { color: var(--cyan); text-decoration: none; }
-  .inc .row2 a:hover { text-decoration: underline; }
-  .inc .id { color: #3f474e; }
-
-  /* agents — teletype log */
-  .ag { display: flex; gap: 9px; padding: 5px 12px; border-bottom: 1px solid #1c2024; align-items: baseline; }
-  .ag:nth-child(even) { background: rgba(255,255,255,.015); }
-  .ag.fresh { animation: freshrow 2s ease-out; }
-  .ag .role { flex: none; font-size: 8px; font-weight: 700; letter-spacing: .12em; width: 82px;
-    padding: 1px 0; text-align: center; border: 1px solid; }
-  .role.sentinel { color: var(--cyan); border-color: var(--cyan); }
-  .role.triage { color: var(--amber); border-color: var(--amber); }
-  .role.containment { color: var(--orange); border-color: var(--orange); }
-  .role.patch { color: var(--purple); border-color: var(--purple); }
-  .role.self_heal { color: var(--green); border-color: var(--green); }
-  .role.comms { color: var(--red); border-color: var(--red); }
-  .ag .body { min-width: 0; }
-  .ag .action { font-size: 10px; color: var(--text); overflow-wrap: anywhere; }
-  .ag .meta { font-size: 9px; color: #4d565e; margin-top: 2px; display: flex; gap: 10px; }
-  .ag .meta a { color: var(--cyan); text-decoration: none; }
-  .ag .meta a:hover { text-decoration: underline; }
+  .role-sentinel { color: var(--cyan); }
+  .role-triage { color: var(--amber); }
+  .role-containment { color: var(--orange); }
+  .role-patch { color: var(--purple); }
+  .role-self_heal { color: var(--green); }
+  .role-comms { color: var(--red); }
 
   /* ---------- secure comms panel (the call) ---------- */
   #callModal {
@@ -384,6 +375,14 @@
     </div>
   </div>
 </main>
+
+<footer id="statusbar">
+  <span>TLM LINK <b id="sbTlm">NOMINAL</b></span>
+  <span>EVENT BUS <b id="sbBus">0 EV</b></span>
+  <span>SWARM <b>6 LOOPS UP</b></span>
+  <span>MODE <b>DEFEND · SIM FEED</b></span>
+  <span class="r">FS-OPS // CLASS: SIMULATION</span>
+</footer>
 
 <div id="callModal">
   <div class="phone ringing" id="phone">
@@ -604,27 +603,23 @@ function renderIncidents() {
   document.getElementById("incCnt").textContent = list.length;
   if (!list.length) { box.innerHTML = '<div class="empty">AWAITING THREAT SIGNALS…</div>'; return; }
   const prevKeys = new Set(S.incOrder);
-  box.innerHTML = list.map(inc => {
+  box.innerHTML = `<table class="tbl"><thead><tr>
+      <th>TIME</th><th>TYPE</th><th>SEV</th><th>STATUS</th><th>SOURCE</th><th>REF</th>
+    </tr></thead><tbody>` + list.map(inc => {
     const l = inc.latest;
     const fresh = prevKeys.size && !prevKeys.has(l.id + "|" + l.status);
-    return `<div class="inc sev-${esc(l.severity)} ${fresh ? "fresh" : ""}" data-id="${esc(l.id)}">
-      <div class="row1">
-        <span class="ts">${fmtTime(inc.first.ts)}Z</span>
-        <span class="kind">${esc(l.kind || "anomaly")}</span>
-        <span class="sev ${esc(l.severity)}">${esc((l.severity || "").toUpperCase())}</span>
-        <span class="chip ${esc(l.status)}">${esc((l.status || "").toUpperCase().replace("_", " "))}</span>
-      </div>
-      <div class="ev">${esc(l.evidence || "")}</div>
-      <div class="row2">
-        <span>${esc(l.source_ip || "")}</span>
-        <span class="id">${esc(l.id)}</span>
-        ${l.session_url ? `<a href="${esc(l.session_url)}" target="_blank">session ↗</a>` : ""}
-        ${l.pr_url ? `<a href="${esc(l.pr_url)}" target="_blank">PR ↗</a>` : ""}
-      </div>
-    </div>`;
-  }).join("");
+    return `<tr class="ir ${fresh ? "fresh" : ""}" data-id="${esc(l.id)}" title="${esc(l.evidence || "")}">
+      <td class="ts">${fmtTime(inc.first.ts)}Z</td>
+      <td class="kind">${esc((l.kind || "anomaly").toUpperCase())}</td>
+      <td class="sev ${esc(l.severity)}">${esc((l.severity || "").toUpperCase())}</td>
+      <td class="st st-${esc(l.status)}">${esc((l.status || "").toUpperCase().replace("_", " "))}</td>
+      <td class="ip">${esc(l.source_ip || "")}</td>
+      <td class="id">${esc(l.id)}${l.pr_url ? ` <a href="${esc(l.pr_url)}" target="_blank">PR↗</a>` : ""}${l.session_url ? ` <a href="${esc(l.session_url)}" target="_blank">SES↗</a>` : ""}</td>
+    </tr>`;
+  }).join("") + `</tbody></table>`;
   S.incOrder = list.map(i => i.latest.id + "|" + i.latest.status);
-  box.querySelectorAll(".inc").forEach(el => el.addEventListener("click", () => {
+  box.querySelectorAll("tr.ir").forEach(el => el.addEventListener("click", e => {
+    if (e.target.tagName === "A") return;
     const m = S.incidentMarkers.get(el.dataset.id);
     if (m) { map.flyTo(m.getLatLng(), 5, { duration: 0.8 }); m.openPopup(); }
   }));
@@ -636,17 +631,14 @@ function renderAgents() {
   if (!S.agents.length) { box.innerHTML = '<div class="empty">SWARM STANDING BY…</div>'; return; }
   const fresh = S.agents.length > S.agCount && S.agCount !== 0;
   const list = S.agents.slice(-60).reverse();
-  box.innerHTML = list.map((a, i) => `<div class="ag ${fresh && i === 0 ? "fresh" : ""}">
-      <span class="ts" style="color:var(--text-dim);font-size:9px;font-variant-numeric:tabular-nums;flex:none">${fmtTime(a.ts)}Z</span>
-      <span class="role ${esc(a.agent_role)}">${esc((a.agent_role || "agent").toUpperCase().replace("_", " "))}</span>
-      <div class="body">
-        <div class="action">${esc(a.action || "")}</div>
-        <div class="meta">
-          ${a.incident_id ? `<span class="id">${esc(a.incident_id)}</span>` : ""}
-          ${a.session_url ? `<a href="${esc(a.session_url)}" target="_blank">session ↗</a>` : ""}
-        </div>
-      </div>
-    </div>`).join("");
+  box.innerHTML = `<table class="tbl"><thead><tr>
+      <th>TIME</th><th>LOOP</th><th>EVENT</th><th>INCIDENT</th>
+    </tr></thead><tbody>` + list.map((a, i) => `<tr class="${fresh && i === 0 ? "fresh" : ""}">
+      <td class="ts">${fmtTime(a.ts)}Z</td>
+      <td class="role role-${esc(a.agent_role)}">${esc((a.agent_role || "agent").toUpperCase().replace("_", " "))}</td>
+      <td class="action">${esc(a.action || "")}</td>
+      <td class="id">${a.incident_id ? esc(a.incident_id) : ""}${a.session_url ? ` <a href="${esc(a.session_url)}" target="_blank">SES↗</a>` : ""}</td>
+    </tr>`).join("") + `</tbody></table>`;
   S.agCount = S.agents.length;
 }
 
@@ -843,6 +835,11 @@ async function poll() {
   const stale = Date.now() - S.lastFetchOk > 4000;
   document.getElementById("liveDot").classList.toggle("stale", stale);
   document.getElementById("liveTxt").textContent = stale ? "STALE" : "LIVE";
+  const sbTlm = document.getElementById("sbTlm");
+  sbTlm.textContent = stale ? "DEGRADED" : "NOMINAL";
+  sbTlm.classList.toggle("warn", stale);
+  document.getElementById("sbBus").textContent =
+    (S.attacks.length + S.agents.length + S.incidents.size) + " EV";
 }
 
 /* clocks — UTC + mission elapsed (GET) */
