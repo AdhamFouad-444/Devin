@@ -85,6 +85,14 @@
     font-family: inherit; font-size: 9px; letter-spacing: .15em; padding: 5px 9px; cursor: pointer;
   }
   #audioToggle.on { color: var(--cyan); border-color: var(--cyan); }
+  #attackBtn {
+    background: rgba(224,82,77,.12); border: 1px solid var(--red); color: var(--red);
+    font-family: inherit; font-size: 9px; font-weight: 700; letter-spacing: .16em;
+    padding: 5px 12px; cursor: pointer; transition: filter .12s;
+  }
+  #attackBtn:hover { filter: brightness(1.3); }
+  #attackBtn:disabled { opacity: .5; cursor: default; }
+  #attackBtn.fired { color: var(--green); border-color: var(--green); background: rgba(87,166,87,.1); }
   #callBanner {
     display: none; align-items: center; gap: 8px; color: var(--red);
     font-size: 10px; letter-spacing: .2em; animation: blink .7s infinite; cursor: pointer;
@@ -339,6 +347,7 @@
     <div class="num" id="interceptedNum">0</div>
   </div>
   <div class="hdr-right">
+    <button id="attackBtn" title="Fire a simulated attack wave">▶ ATTACK</button>
     <div id="callBanner">◉ INCOMING CALL</div>
     <button id="audioToggle" class="on" title="Toggle spoken call audio">AUDIO ON</button>
     <div class="live-dot" id="liveDot"><i></i><span id="liveTxt">LIVE</span></div>
@@ -460,6 +469,7 @@ const S = {
 async function fetchJsonl(name) {
   try {
     const r = await fetch(EVENTS + name + ".jsonl", { cache: "no-store" });
+    S.lastFetchOk = Date.now(); // got an HTTP response — link is alive even on 404 (empty event file)
     if (!r.ok) return [];
     const txt = await r.text();
     const out = [];
@@ -468,7 +478,6 @@ async function fetchJsonl(name) {
       if (!t) continue;
       try { out.push(JSON.parse(t)); } catch (e) { /* partial last line */ }
     }
-    S.lastFetchOk = Date.now();
     return out;
   } catch (e) { return []; }
 }
@@ -680,13 +689,16 @@ function renderApprovals() {
 async function postDecision(id, decision, by) {
   S.localDecisions.set(id, { decision, decided_by: by });
   try { speechSynthesis.cancel(); } catch (e) {}
+  // same-origin API first (works through the remote tunnel), voice service as fallback
+  const body = JSON.stringify({ id, decision, decided_by: by });
   try {
-    await fetch("http://localhost:8020/decision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, decision, decided_by: by }),
-    });
-  } catch (e) { /* voice server may be down — UI already updated */ }
+    const r = await fetch("/api/decision", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    if (!r.ok) throw new Error(String(r.status));
+  } catch (e) {
+    try {
+      await fetch("http://localhost:8020/decision", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    } catch (e2) { /* voice server may be down — UI already updated */ }
+  }
   renderApprovals();
   renderMetrics();
 }
@@ -799,6 +811,21 @@ function voiceDecision(decision) {
 
 document.getElementById("callBanner").addEventListener("click", () => {
   if (S.activeCall) document.getElementById("callModal").classList.add("show");
+});
+
+document.getElementById("attackBtn").addEventListener("click", async function () {
+  this.disabled = true;
+  const label = this.textContent;
+  this.textContent = "FIRING…";
+  try {
+    const r = await fetch("/api/attack", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const j = await r.json();
+    this.textContent = (j.scenario || "WAVE") + " FIRED";
+    this.classList.add("fired");
+  } catch (e) {
+    this.textContent = "FIRE FAILED";
+  }
+  setTimeout(() => { this.disabled = false; this.textContent = label; this.classList.remove("fired"); }, 4000);
 });
 document.getElementById("audioToggle").addEventListener("click", function () {
   S.audioOn = !S.audioOn;
