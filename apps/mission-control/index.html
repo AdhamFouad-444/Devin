@@ -1,4 +1,847 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Falcon Shield — Mission Control (stub)</title></head>
-<body><h1>Mission Control stub</h1><p>See contracts/README.md — polls ../../events/*.jsonl,
-renders threat map (Leaflet CDN), incident feed, swarm panel, metrics, approval queue,
-simulated incoming-call panel (speechSynthesis) reading call_script.</p></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FALCON SHIELD — Mission Control</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  :root {
+    --bg: #05070d;
+    --bg-panel: #0a0f1c;
+    --bg-panel-2: #0d1424;
+    --border: #1b2740;
+    --border-glow: #27395e;
+    --text: #d6e3f5;
+    --text-dim: #6b7f9e;
+    --cyan: #22d3ee;
+    --red: #f43f5e;
+    --amber: #fbbf24;
+    --green: #34d399;
+    --purple: #a78bfa;
+    --orange: #fb923c;
+    --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #22314f; border-radius: 3px; }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 20px; height: 58px; flex: none;
+    background: linear-gradient(180deg, #0b1120, #070b16);
+    border-bottom: 1px solid var(--border-glow);
+    position: relative; z-index: 10;
+  }
+  header::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: .35;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand svg { width: 30px; height: 30px; filter: drop-shadow(0 0 6px rgba(34,211,238,.5)); }
+  .brand h1 {
+    font-size: 17px; font-weight: 700; letter-spacing: .22em;
+    color: #eef4ff; white-space: nowrap;
+  }
+  .brand h1 span { color: var(--cyan); }
+  .brand .sub { font-size: 10px; letter-spacing: .3em; color: var(--text-dim); margin-top: 2px; }
+  .headline-counter {
+    margin-left: auto; display: flex; align-items: baseline; gap: 12px;
+    padding: 6px 18px; border: 1px solid var(--border-glow); border-radius: 6px;
+    background: rgba(244,63,94,.06);
+  }
+  .headline-counter .label { font-size: 10px; letter-spacing: .25em; color: var(--red); }
+  .headline-counter .num {
+    font-size: 30px; font-weight: 800; color: #fff; line-height: 1;
+    text-shadow: 0 0 18px rgba(244,63,94,.65); min-width: 3ch; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .headline-counter .num.bump { animation: bump .5s ease; }
+  @keyframes bump { 30% { transform: scale(1.25); color: var(--red); } }
+  .hdr-right { display: flex; align-items: center; gap: 14px; }
+  .live-dot { display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: .2em; color: var(--green); }
+  .live-dot i {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 8px var(--green); animation: blink 1.6s infinite;
+  }
+  .live-dot.stale { color: var(--amber); } .live-dot.stale i { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+  @keyframes blink { 50% { opacity: .35; } }
+  #clock { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  #audioToggle {
+    background: var(--bg-panel-2); border: 1px solid var(--border-glow); color: var(--text-dim);
+    font-family: inherit; font-size: 10px; letter-spacing: .15em; padding: 6px 10px;
+    border-radius: 5px; cursor: pointer;
+  }
+  #audioToggle.on { color: var(--cyan); border-color: var(--cyan); }
+  #callBanner {
+    display: none; align-items: center; gap: 8px; color: var(--red);
+    font-size: 11px; letter-spacing: .2em; animation: blink .7s infinite; cursor: pointer;
+  }
+  #callBanner.show { display: flex; }
+
+  /* ---------- metrics row ---------- */
+  #metrics {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px;
+    background: var(--border); border-bottom: 1px solid var(--border-glow); flex: none;
+  }
+  .metric {
+    background: var(--bg-panel); padding: 10px 16px;
+    display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  }
+  .metric .k { font-size: 9px; letter-spacing: .22em; color: var(--text-dim); text-transform: uppercase; }
+  .metric .v { font-size: 22px; font-weight: 700; color: #eef4ff; font-variant-numeric: tabular-nums; }
+  .metric .v.red { color: var(--red); } .metric .v.amber { color: var(--amber); }
+  .metric .v.green { color: var(--green); } .metric .v.cyan { color: var(--cyan); }
+  .metric .v.purple { color: var(--purple); }
+
+  /* ---------- main ---------- */
+  main { flex: 1; display: grid; grid-template-columns: 1fr 400px; min-height: 0; }
+  #mapWrap { position: relative; min-width: 0; }
+  #map { position: absolute; inset: 0; background: #050a14; }
+  .map-overlay {
+    position: absolute; left: 14px; bottom: 14px; z-index: 500;
+    font-size: 10px; letter-spacing: .18em; color: var(--text-dim);
+    background: rgba(5,8,15,.75); border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 4px; pointer-events: none;
+  }
+  .map-overlay b { color: var(--cyan); }
+
+  /* arcs & pins */
+  .arc-path { stroke-dasharray: 7 9; animation: arcflow 1.1s linear infinite; }
+  @keyframes arcflow { to { stroke-dashoffset: -32; } }
+  .arc-new { animation: arcflash 1.2s ease-out, arcflow 1.1s linear infinite; }
+  @keyframes arcflash { 0%,40% { stroke: #fff; } }
+  .pin { position: relative; width: 14px; height: 14px; }
+  .pin i {
+    position: absolute; inset: 3px; border-radius: 50%;
+    background: var(--c, var(--red)); box-shadow: 0 0 8px var(--c, var(--red));
+  }
+  .pin.hot::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid var(--c, var(--red)); animation: ping 1.4s ease-out infinite;
+  }
+  @keyframes ping { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(2.6); opacity: 0; } }
+  .hq-marker {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: radial-gradient(circle, var(--cyan) 0%, rgba(34,211,238,.25) 60%, transparent 70%);
+    border: 2px solid var(--cyan); box-shadow: 0 0 14px var(--cyan);
+  }
+  .hq-wrap { position: relative; }
+  .hq-wrap::before {
+    content: ""; position: absolute; inset: -8px; border-radius: 50%;
+    border: 1px solid rgba(34,211,238,.5); animation: ping 2.4s ease-out infinite;
+  }
+  .leaflet-popup-content-wrapper {
+    background: #0b1120; color: var(--text); border: 1px solid var(--border-glow);
+    font-family: var(--font-mono); font-size: 12px; border-radius: 6px;
+  }
+  .leaflet-popup-tip { background: #0b1120; }
+  .leaflet-popup-content a { color: var(--cyan); }
+  .leaflet-container { font-family: var(--font-mono); }
+
+  /* ---------- right rail ---------- */
+  #rail {
+    display: flex; flex-direction: column; min-height: 0;
+    border-left: 1px solid var(--border-glow); background: var(--bg-panel);
+  }
+  .panel { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--border); }
+  .panel h2 {
+    flex: none; font-size: 10px; letter-spacing: .25em; color: var(--text-dim);
+    padding: 9px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px; background: var(--bg-panel-2);
+  }
+  .panel h2 .cnt { margin-left: auto; color: var(--cyan); letter-spacing: 0; }
+  .panel .scroll { overflow-y: auto; flex: 1; min-height: 0; }
+  #panelApprovals { flex: 0 1 auto; max-height: 30%; }
+  #panelIncidents { flex: 1 1 45%; }
+  #panelAgents { flex: 1 1 30%; }
+
+  .empty { padding: 14px; color: #3d4f70; font-size: 11px; letter-spacing: .12em; }
+
+  /* approvals */
+  .appr {
+    margin: 10px; padding: 10px 12px; border: 1px solid rgba(251,191,36,.4);
+    border-left: 3px solid var(--amber); border-radius: 6px;
+    background: rgba(251,191,36,.05);
+  }
+  .appr .act { color: var(--amber); font-size: 11px; letter-spacing: .15em; font-weight: 700; }
+  .appr .sum { margin: 5px 0 8px; color: var(--text); font-size: 12px; line-height: 1.45; }
+  .appr .meta { font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
+  .appr .btns { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: .15em;
+    padding: 7px 0; border-radius: 5px; border: 1px solid transparent; cursor: pointer;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.3); }
+  .btn-approve { background: rgba(52,211,153,.15); color: var(--green); border-color: rgba(52,211,153,.5); }
+  .btn-deny { background: rgba(244,63,94,.12); color: var(--red); border-color: rgba(244,63,94,.5); }
+
+  /* incidents */
+  .inc {
+    padding: 9px 14px; border-bottom: 1px solid #111a2e; cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .inc:hover { background: #0e1628; }
+  .inc.sev-high { border-left-color: var(--red); }
+  .inc.sev-med { border-left-color: var(--amber); }
+  .inc.sev-low { border-left-color: var(--cyan); }
+  .inc.fresh { animation: freshrow 2s ease-out; }
+  @keyframes freshrow { 0% { background: rgba(244,63,94,.25); } }
+  .inc .row1 { display: flex; align-items: center; gap: 8px; }
+  .inc .kind { font-weight: 700; font-size: 12px; color: #eef4ff; letter-spacing: .08em; }
+  .sev { font-size: 9px; letter-spacing: .15em; padding: 2px 6px; border-radius: 3px; font-weight: 700; }
+  .sev.high { color: var(--red); border: 1px solid var(--red); }
+  .sev.med { color: var(--amber); border: 1px solid var(--amber); }
+  .sev.low { color: var(--cyan); border: 1px solid var(--cyan); }
+  .chip {
+    margin-left: auto; font-size: 9px; letter-spacing: .12em; padding: 2px 7px;
+    border-radius: 10px; font-weight: 700; white-space: nowrap;
+  }
+  .chip.open { background: rgba(244,63,94,.18); color: var(--red); }
+  .chip.triaged { background: rgba(251,191,36,.15); color: var(--amber); }
+  .chip.contained { background: rgba(34,211,238,.14); color: var(--cyan); }
+  .chip.patch_pr { background: rgba(167,139,250,.16); color: var(--purple); }
+  .chip.patched, .chip.verified { background: rgba(52,211,153,.15); color: var(--green); }
+  .chip.escalated { background: rgba(251,146,60,.16); color: var(--orange); }
+  .inc .ev { margin-top: 4px; font-size: 11px; color: var(--text-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inc .row2 { margin-top: 4px; display: flex; gap: 10px; font-size: 10px; color: #46587a; align-items: center; }
+  .inc .row2 a { color: var(--cyan); text-decoration: none; }
+  .inc .row2 a:hover { text-decoration: underline; }
+  .inc .id { color: #38496b; }
+
+  /* agents */
+  .ag { display: flex; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #111a2e; align-items: baseline; }
+  .ag.fresh { animation: freshrow 2s ease-out; }
+  .ag .role { flex: none; font-size: 9px; font-weight: 700; letter-spacing: .12em; width: 84px;
+    padding: 2px 0; text-align: center; border-radius: 3px; border: 1px solid; }
+  .role.sentinel { color: var(--cyan); border-color: var(--cyan); }
+  .role.triage { color: var(--amber); border-color: var(--amber); }
+  .role.containment { color: var(--orange); border-color: var(--orange); }
+  .role.patch { color: var(--purple); border-color: var(--purple); }
+  .role.self_heal { color: var(--green); border-color: var(--green); }
+  .role.comms { color: var(--red); border-color: var(--red); }
+  .ag .body { min-width: 0; }
+  .ag .action { font-size: 11px; color: var(--text); overflow-wrap: anywhere; }
+  .ag .meta { font-size: 10px; color: #46587a; margin-top: 2px; display: flex; gap: 10px; }
+  .ag .meta a { color: var(--cyan); text-decoration: none; }
+  .ag .meta a:hover { text-decoration: underline; }
+
+  /* ---------- incoming call modal ---------- */
+  #callModal {
+    position: fixed; inset: 0; z-index: 2000; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(2,4,10,.72); backdrop-filter: blur(3px);
+  }
+  #callModal.show { display: flex; }
+  .phone {
+    width: 330px; border-radius: 42px; padding: 34px 26px 30px;
+    background: linear-gradient(160deg, #101a30 0%, #070b16 100%);
+    border: 1px solid var(--border-glow);
+    box-shadow: 0 0 80px rgba(244,63,94,.25), inset 0 0 60px rgba(0,0,0,.5);
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    animation: phonein .4s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes phonein { from { transform: translateY(40px) scale(.9); opacity: 0; } }
+  .phone .avatar-zone { position: relative; width: 110px; height: 110px; margin-bottom: 18px; }
+  .phone .avatar {
+    position: absolute; inset: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #1c2c4e, #0a1120);
+    border: 2px solid var(--cyan); display: flex; align-items: center; justify-content: center;
+  }
+  .phone .avatar svg { width: 44px; height: 44px; }
+  .phone.ringing .avatar-zone::before, .phone.ringing .avatar-zone::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid rgba(34,211,238,.6); animation: ping 1.6s ease-out infinite;
+  }
+  .phone.ringing .avatar-zone::after { animation-delay: .8s; }
+  .phone .callstate { font-size: 10px; letter-spacing: .35em; color: var(--red); animation: blink 1s infinite; }
+  .phone.answered .callstate { color: var(--green); animation: none; }
+  .phone .caller { font-size: 20px; font-weight: 800; letter-spacing: .14em; color: #fff; margin-top: 8px; }
+  .phone .caller-sub { font-size: 10px; letter-spacing: .2em; color: var(--text-dim); margin-top: 4px; }
+  .phone .script {
+    margin: 16px 0 4px; padding: 12px; font-size: 12px; line-height: 1.5; color: var(--text);
+    background: rgba(34,211,238,.06); border: 1px solid var(--border); border-radius: 8px;
+    max-height: 110px; overflow-y: auto; display: none;
+  }
+  .phone.answered .script { display: block; }
+  .phone .timer { font-size: 12px; color: var(--green); margin-top: 10px; display: none; font-variant-numeric: tabular-nums; }
+  .phone.answered .timer { display: block; }
+  .phone .endmsg { display: none; margin-top: 14px; font-size: 11px; letter-spacing: .2em; color: var(--amber); }
+  .phone.ended .endmsg { display: block; }
+  .phone .controls { display: flex; gap: 46px; margin-top: 26px; }
+  .phone .controls .col { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .phone .controls .lbl { font-size: 9px; letter-spacing: .2em; color: var(--text-dim); }
+  .cbtn {
+    width: 62px; height: 62px; border-radius: 50%; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .12s, filter .12s;
+  }
+  .cbtn:hover { transform: scale(1.08); filter: brightness(1.2); }
+  .cbtn svg { width: 28px; height: 28px; }
+  .cbtn.answer { background: var(--green); animation: ringbob 1.2s ease-in-out infinite; }
+  .cbtn.decline { background: var(--red); }
+  .cbtn.decline svg { transform: rotate(135deg); }
+  @keyframes ringbob { 0%,100% { transform: rotate(0); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); } 30% { transform: rotate(8deg); } 40% { transform: rotate(-5deg); } 50% { transform: rotate(0); } }
+  .phone .decide { display: none; flex-direction: column; gap: 10px; width: 100%; margin-top: 18px; }
+  .phone.answered .decide { display: flex; }
+  .phone.answered .controls { display: none; }
+  .dbtn {
+    font-family: inherit; font-size: 13px; font-weight: 800; letter-spacing: .12em;
+    padding: 13px 0; border-radius: 10px; border: none; cursor: pointer; width: 100%;
+    transition: filter .12s;
+  }
+  .dbtn:hover { filter: brightness(1.25); }
+  .dbtn.yes { background: var(--green); color: #04120c; }
+  .dbtn.no { background: rgba(244,63,94,.2); color: var(--red); border: 1px solid var(--red); }
+  .phone.ended .decide, .phone.ended .controls, .phone.ended .timer { display: none; }
+
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 1fr; }
+    #rail { border-left: none; border-top: 1px solid var(--border-glow); }
+    #mapWrap { min-height: 45vh; }
+    #metrics { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 1.5 21 5v6c0 5.5-3.8 9.7-9 11.5C6.8 20.7 3 16.5 3 11V5l9-3.5z" stroke="#22d3ee" stroke-width="1.6" fill="rgba(34,211,238,.08)"/><path d="M7.5 11.5c2-3.5 5-4.5 9-4-1.5 1-2.5 1.6-3.4 3.4-.8 1.6-2.6 3.1-5.6 3.6 1-1 1.6-1.9 2-3z" fill="#22d3ee" opacity=".9"/></svg>
+    <div>
+      <h1>FALCON SHIELD <span>— MISSION CONTROL</span></h1>
+      <div class="sub">AUTONOMOUS DEFENSE SWARM · UAE SECTOR</div>
+    </div>
+  </div>
+  <div class="headline-counter">
+    <div>
+      <div class="label">ATTACKS</div>
+      <div class="label">INTERCEPTED</div>
+    </div>
+    <div class="num" id="interceptedNum">0</div>
+  </div>
+  <div class="hdr-right">
+    <div id="callBanner">◉ INCOMING CALL</div>
+    <button id="audioToggle" class="on" title="Toggle spoken call audio">AUDIO ON</button>
+    <div class="live-dot" id="liveDot"><i></i><span id="liveTxt">LIVE</span></div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div id="metrics">
+  <div class="metric"><div class="k">Attacks Fired</div><div class="v red" id="mAttacks">0</div></div>
+  <div class="metric"><div class="k">Incidents</div><div class="v amber" id="mIncidents">0</div></div>
+  <div class="metric"><div class="k">Contained</div><div class="v cyan" id="mContained">0</div></div>
+  <div class="metric"><div class="k">Patches Merged</div><div class="v green" id="mPatched">0</div></div>
+  <div class="metric"><div class="k">MTTD</div><div class="v purple" id="mMttd">—</div></div>
+  <div class="metric"><div class="k">Human Touches</div><div class="v" id="mHuman">0</div></div>
+</div>
+
+<main>
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div class="map-overlay">DEFENDING <b>ABU DHABI · 24.45°N 54.38°E</b> — CITIZEN PORTAL</div>
+  </div>
+  <div id="rail">
+    <div class="panel" id="panelApprovals">
+      <h2>APPROVAL QUEUE <span class="cnt" id="apprCnt">0</span></h2>
+      <div class="scroll" id="approvals"><div class="empty">NO PENDING APPROVALS</div></div>
+    </div>
+    <div class="panel" id="panelIncidents">
+      <h2>INCIDENT FEED <span class="cnt" id="incCnt">0</span></h2>
+      <div class="scroll" id="incidents"><div class="empty">AWAITING THREAT SIGNALS…</div></div>
+    </div>
+    <div class="panel" id="panelAgents">
+      <h2>AGENT ACTIVITY <span class="cnt" id="agCnt">0</span></h2>
+      <div class="scroll" id="agents"><div class="empty">SWARM STANDING BY…</div></div>
+    </div>
+  </div>
+</main>
+
+<div id="callModal">
+  <div class="phone ringing" id="phone">
+    <div class="avatar-zone">
+      <div class="avatar">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 1.5 21 5v6c0 5.5-3.8 9.7-9 11.5C6.8 20.7 3 16.5 3 11V5l9-3.5z" stroke="#22d3ee" stroke-width="1.4" fill="rgba(34,211,238,.1)"/><path d="M7.5 11.5c2-3.5 5-4.5 9-4-1.5 1-2.5 1.6-3.4 3.4-.8 1.6-2.6 3.1-5.6 3.6 1-1 1.6-1.9 2-3z" fill="#22d3ee"/></svg>
+      </div>
+    </div>
+    <div class="callstate" id="callState">INCOMING CALL</div>
+    <div class="caller">FALCON SHIELD</div>
+    <div class="caller-sub">COMMS AGENT · SECURE LINE</div>
+    <div class="script" id="callScript"></div>
+    <div class="timer" id="callTimer">00:00</div>
+    <div class="endmsg" id="endMsg">DECISION LOGGED — CALL ENDED</div>
+    <div class="controls">
+      <div class="col">
+        <button class="cbtn decline" id="btnDecline" title="Decline">
+          <svg viewBox="0 0 24 24" fill="#fff"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+        </button>
+        <div class="lbl">DECLINE</div>
+      </div>
+      <div class="col">
+        <button class="cbtn answer" id="btnAnswer" title="Answer">
+          <svg viewBox="0 0 24 24" fill="#04120c"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+        </button>
+        <div class="lbl">ANSWER</div>
+      </div>
+    </div>
+    <div class="decide">
+      <button class="dbtn yes" id="btnYes">YES — DEPLOY</button>
+      <button class="dbtn no" id="btnNo">NO</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============ Falcon Shield — Mission Control ============
+   Polls ../../events/*.jsonl (append-only event bus) every ~1s.
+   Contract: contracts/README.md */
+
+const EVENTS = "../../events/";
+const ABU_DHABI = [24.45, 54.38];
+const POLL_MS = 1000;
+const FILES = ["attacks", "incidents", "agents", "approval_requests", "approval_decisions", "call"];
+
+const SEV_COLOR = { low: "#22d3ee", med: "#fbbf24", high: "#f43f5e" };
+const CONTAINED_STATUSES = new Set(["contained", "patch_pr", "patched", "verified"]);
+const PATCHED_STATUSES = new Set(["patched", "verified"]);
+
+/* ---------- state ---------- */
+const S = {
+  attacks: [],                 // parsed attack lines
+  incidents: new Map(),        // id -> {first, latest} line
+  agents: [],
+  approvals: new Map(),        // id -> latest request line
+  decisions: new Map(),        // id -> latest decision line
+  calls: new Map(),            // approval_id -> latest call line
+  localDecisions: new Map(),   // id -> decision (posted locally, not yet seen in file)
+  dismissedCalls: new Set(),   // approval_ids declined locally
+  seenAttacks: 0,              // count of arcs already drawn
+  incidentMarkers: new Map(),  // incident id -> marker
+  incOrder: [],                // render order bookkeeping
+  agCount: 0,
+  activeCall: null,            // approval_id currently in modal
+  callAnswered: false,
+  callTimerInt: null,
+  callStartTs: 0,
+  spoken: new Set(),
+  audioOn: true,
+  lastFetchOk: Date.now(),
+};
+
+/* ---------- fetch / parse ---------- */
+async function fetchJsonl(name) {
+  try {
+    const r = await fetch(EVENTS + name + ".jsonl", { cache: "no-store" });
+    if (!r.ok) return [];
+    const txt = await r.text();
+    const out = [];
+    for (const line of txt.split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      try { out.push(JSON.parse(t)); } catch (e) { /* partial last line */ }
+    }
+    S.lastFetchOk = Date.now();
+    return out;
+  } catch (e) { return []; }
+}
+
+function indexLatest(lines, key) {
+  const m = new Map();
+  for (const l of lines) {
+    const k = l[key];
+    if (k == null) continue;
+    if (!m.has(k)) m.set(k, { first: l, latest: l });
+    else m.get(k).latest = l;
+  }
+  return m;
+}
+
+/* ---------- map ---------- */
+let map, arcLayer, pinLayer;
+function initMap() {
+  map = L.map("map", {
+    center: [28, 40], zoom: 3, minZoom: 2, maxZoom: 8,
+    worldCopyJump: true, zoomControl: true, attributionControl: false,
+  });
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    subdomains: "abcd", maxZoom: 19,
+  }).addTo(map);
+  arcLayer = L.layerGroup().addTo(map);
+  pinLayer = L.layerGroup().addTo(map);
+  const hq = L.marker(ABU_DHABI, {
+    icon: L.divIcon({ className: "hq-wrap", html: '<div class="hq-marker"></div>', iconSize: [18, 18] }),
+  }).addTo(map);
+  hq.bindPopup("<b>ABU DHABI</b><br>Protected asset — citizen portal");
+}
+
+function arcPoints(a, b) {
+  // quadratic bezier lifted perpendicular to the chord
+  const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const dist = Math.hypot(dx, dy) || 1;
+  const lift = Math.min(28, dist * 0.32);
+  const cx = mx - (dy / dist) * lift, cy = my + (dx / dist) * lift;
+  const pts = [];
+  for (let i = 0; i <= 40; i++) {
+    const t = i / 40, u = 1 - t;
+    pts.push([u * u * a[0] + 2 * u * t * cx + t * t * b[0],
+              u * u * a[1] + 2 * u * t * cy + t * t * b[1]]);
+  }
+  return pts;
+}
+
+function addArc(atk, isNew) {
+  const geo = atk.source && atk.source.geo;
+  if (!Array.isArray(geo) || geo.length < 2) return;
+  const from = [geo[0], geo[1]];
+  const pts = arcPoints(from, ABU_DHABI);
+  const cls = "arc-path" + (isNew ? " arc-new" : "");
+  L.polyline(pts, { color: "#f43f5e", weight: 6, opacity: 0.12, interactive: false }).addTo(arcLayer);
+  const arc = L.polyline(pts, { color: "#f43f5e", weight: 1.8, opacity: 0.95, className: cls, interactive: false }).addTo(arcLayer);
+  const label = geo[2] || atk.source.ip || "unknown";
+  arc.bindPopup(`<b>ATTACK</b> ${esc(atk.scenario || "")}<br>${esc(label)} → ABU DHABI<br>${esc(atk.target_path || "")} · ${esc(atk.result || "")}`);
+  // origin blip
+  L.circleMarker(from, { radius: 4, color: "#f43f5e", weight: 1, fillColor: "#f43f5e", fillOpacity: 0.8, interactive: false }).addTo(arcLayer);
+  if (isNew) setTimeout(() => { const el = arc.getElement(); if (el) el.classList.remove("arc-new"); }, 1400);
+}
+
+function incidentPin(inc) {
+  // pin incidents at the geo of their matched attack if we have it, else offset around AD
+  let pos = null;
+  const atk = S.attacks.find(a => a.source && a.source.ip === inc.latest.source_ip && Array.isArray(a.source.geo));
+  if (atk) pos = atk.source.geo.slice(0, 2);
+  let m = S.incidentMarkers.get(inc.first.id);
+  const sev = inc.latest.severity || "low";
+  const color = SEV_COLOR[sev] || SEV_COLOR.low;
+  const hot = inc.latest.status === "open" || inc.latest.status === "triaged";
+  if (!pos) return; // nowhere to pin
+  if (!m) {
+    m = L.marker(pos, {
+      icon: L.divIcon({ className: "", html: `<div class="pin ${hot ? "hot" : ""}" style="--c:${color}"><i></i></div>`, iconSize: [14, 14] }),
+    }).addTo(pinLayer);
+    S.incidentMarkers.set(inc.first.id, m);
+  } else {
+    const el = m.getElement() && m.getElement().querySelector(".pin");
+    if (el) { el.classList.toggle("hot", hot); el.style.setProperty("--c", color); }
+  }
+  const l = inc.latest;
+  m.bindPopup(
+    `<b>${esc(l.kind || "incident")}</b> · ${esc(sev)} · ${esc(l.status || "")}<br>` +
+    `${esc(l.evidence || "")}<br><span style="color:#6b7f9e">${esc(l.source_ip || "")} · ${esc(l.id)}</span>` +
+    (l.session_url ? `<br><a href="${esc(l.session_url)}" target="_blank">agent session ↗</a>` : "") +
+    (l.pr_url ? ` · <a href="${esc(l.pr_url)}" target="_blank">patch PR ↗</a>` : "")
+  );
+}
+
+/* ---------- render ---------- */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtTime = ts => { try { return new Date(ts * 1000).toISOString().slice(11, 19); } catch (e) { return ""; } };
+
+function renderMetrics() {
+  const incidents = [...S.incidents.values()];
+  document.getElementById("mAttacks").textContent = S.attacks.length;
+  document.getElementById("mIncidents").textContent = incidents.length;
+  document.getElementById("mContained").textContent = incidents.filter(i => CONTAINED_STATUSES.has(i.latest.status)).length;
+  document.getElementById("mPatched").textContent = incidents.filter(i => PATCHED_STATUSES.has(i.latest.status)).length;
+  document.getElementById("mHuman").textContent = S.decisions.size + [...S.localDecisions.keys()].filter(k => !S.decisions.has(k)).length;
+
+  // MTTD: incident first-seen ts minus matching attack ts (match by source_ip, nearest preceding)
+  let sum = 0, n = 0;
+  for (const inc of incidents) {
+    const ts0 = inc.first.ts;
+    let best = null;
+    for (const a of S.attacks) {
+      if (a.source && a.source.ip === inc.latest.source_ip && a.ts <= ts0 + 0.001) {
+        const d = ts0 - a.ts;
+        if (d >= 0 && (best === null || d < best)) best = d;
+      }
+    }
+    if (best !== null) { sum += best; n++; }
+  }
+  document.getElementById("mMttd").textContent = n ? (sum / n).toFixed(1) + "s" : "—";
+
+  // headline counter = attacks intercepted (incidents raised)
+  const el = document.getElementById("interceptedNum");
+  const v = incidents.length;
+  if (el.textContent !== String(v)) {
+    el.textContent = v;
+    el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+  }
+}
+
+function renderIncidents() {
+  const box = document.getElementById("incidents");
+  const list = [...S.incidents.values()].sort((a, b) => b.first.ts - a.first.ts);
+  document.getElementById("incCnt").textContent = list.length;
+  if (!list.length) { box.innerHTML = '<div class="empty">AWAITING THREAT SIGNALS…</div>'; return; }
+  const prevKeys = new Set(S.incOrder);
+  box.innerHTML = list.map(inc => {
+    const l = inc.latest;
+    const fresh = prevKeys.size && !prevKeys.has(l.id + "|" + l.status);
+    return `<div class="inc sev-${esc(l.severity)} ${fresh ? "fresh" : ""}" data-id="${esc(l.id)}">
+      <div class="row1">
+        <span class="kind">${esc(l.kind || "anomaly")}</span>
+        <span class="sev ${esc(l.severity)}">${esc((l.severity || "").toUpperCase())}</span>
+        <span class="chip ${esc(l.status)}">${esc((l.status || "").toUpperCase().replace("_", " "))}</span>
+      </div>
+      <div class="ev">${esc(l.evidence || "")}</div>
+      <div class="row2">
+        <span>${fmtTime(inc.first.ts)}Z</span>
+        <span>${esc(l.source_ip || "")}</span>
+        <span class="id">${esc(l.id)}</span>
+        ${l.session_url ? `<a href="${esc(l.session_url)}" target="_blank">session ↗</a>` : ""}
+        ${l.pr_url ? `<a href="${esc(l.pr_url)}" target="_blank">PR ↗</a>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+  S.incOrder = list.map(i => i.latest.id + "|" + i.latest.status);
+  box.querySelectorAll(".inc").forEach(el => el.addEventListener("click", () => {
+    const m = S.incidentMarkers.get(el.dataset.id);
+    if (m) { map.flyTo(m.getLatLng(), 5, { duration: 0.8 }); m.openPopup(); }
+  }));
+}
+
+function renderAgents() {
+  const box = document.getElementById("agents");
+  document.getElementById("agCnt").textContent = S.agents.length;
+  if (!S.agents.length) { box.innerHTML = '<div class="empty">SWARM STANDING BY…</div>'; return; }
+  const fresh = S.agents.length > S.agCount && S.agCount !== 0;
+  const list = S.agents.slice(-60).reverse();
+  box.innerHTML = list.map((a, i) => `<div class="ag ${fresh && i === 0 ? "fresh" : ""}">
+      <span class="role ${esc(a.agent_role)}">${esc((a.agent_role || "agent").toUpperCase().replace("_", " "))}</span>
+      <div class="body">
+        <div class="action">${esc(a.action || "")}</div>
+        <div class="meta">
+          <span>${fmtTime(a.ts)}Z</span>
+          ${a.incident_id ? `<span class="id">${esc(a.incident_id)}</span>` : ""}
+          ${a.session_url ? `<a href="${esc(a.session_url)}" target="_blank">session ↗</a>` : ""}
+        </div>
+      </div>
+    </div>`).join("");
+  S.agCount = S.agents.length;
+}
+
+function decidedIds() {
+  const ids = new Set(S.decisions.keys());
+  for (const k of S.localDecisions.keys()) ids.add(k);
+  return ids;
+}
+
+function pendingApprovals() {
+  const decided = decidedIds();
+  return [...S.approvals.values()]
+    .filter(a => (a.latest.status || "pending") === "pending" && !decided.has(a.latest.id))
+    .sort((a, b) => a.first.ts - b.first.ts);
+}
+
+function renderApprovals() {
+  const box = document.getElementById("approvals");
+  const list = pendingApprovals();
+  document.getElementById("apprCnt").textContent = list.length;
+  if (!list.length) { box.innerHTML = '<div class="empty">NO PENDING APPROVALS</div>'; return; }
+  box.innerHTML = list.map(a => {
+    const l = a.latest;
+    return `<div class="appr" data-id="${esc(l.id)}">
+      <div class="act">⚠ ${esc((l.action || "").toUpperCase().replace("_", " "))}</div>
+      <div class="sum">${esc(l.summary || "")}</div>
+      <div class="meta">${fmtTime(l.ts)}Z · ${esc(l.id)}${l.incident_id ? " · " + esc(l.incident_id) : ""}</div>
+      <div class="btns">
+        <button class="btn btn-approve" data-id="${esc(l.id)}" data-d="approved">APPROVE</button>
+        <button class="btn btn-deny" data-id="${esc(l.id)}" data-d="denied">DENY</button>
+      </div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll("button.btn").forEach(b => b.addEventListener("click", () => {
+    postDecision(b.dataset.id, b.dataset.d, "dashboard");
+  }));
+}
+
+async function postDecision(id, decision, by) {
+  S.localDecisions.set(id, { decision, decided_by: by });
+  try { speechSynthesis.cancel(); } catch (e) {}
+  try {
+    await fetch("http://localhost:8020/decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, decision, decided_by: by }),
+    });
+  } catch (e) { /* voice server may be down — UI already updated */ }
+  renderApprovals();
+  renderMetrics();
+}
+
+/* ---------- incoming call ---------- */
+function speak(text) {
+  if (!S.audioOn || !("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.98; u.pitch = 0.9; u.volume = 1;
+    const vs = speechSynthesis.getVoices();
+    const v = vs.find(x => /en[-_](GB|US)/i.test(x.lang)) || vs[0];
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function currentRinging() {
+  const decided = decidedIds();
+  for (const [aid, c] of S.calls) {
+    if (c.latest.state === "ringing" && !decided.has(aid) && !S.dismissedCalls.has(aid)) {
+      return aid;
+    }
+  }
+  return null;
+}
+
+function callScriptFor(aid) {
+  const req = S.approvals.get(aid);
+  const c = S.calls.get(aid);
+  return (req && req.latest.call_script) || (c && c.latest.call_script) || (c && c.latest.transcript) || "Approval requested.";
+}
+
+function updateCallUI() {
+  const ringing = currentRinging();
+  const modal = document.getElementById("callModal");
+  const phone = document.getElementById("phone");
+  const banner = document.getElementById("callBanner");
+
+  if (S.activeCall && !ringing && S.activeCall !== ringing && !S.callAnswered) {
+    // call vanished / decided externally
+    closeCall();
+  }
+  if (!S.activeCall && ringing) {
+    S.activeCall = ringing;
+    S.callAnswered = false;
+    phone.className = "phone ringing";
+    document.getElementById("callState").textContent = "INCOMING CALL";
+    document.getElementById("callScript").textContent = "“" + callScriptFor(ringing) + "”";
+    modal.classList.add("show");
+    if (!S.spoken.has(ringing)) { S.spoken.add(ringing); speak("Incoming call from Falcon Shield. " + callScriptFor(ringing)); }
+  }
+  if (S.activeCall) {
+    banner.classList.add("show");
+    if (!modal.classList.contains("show") && !S.dismissedCalls.has(S.activeCall)) modal.classList.add("show");
+  } else {
+    banner.classList.remove("show");
+  }
+}
+
+function closeCall() {
+  document.getElementById("callModal").classList.remove("show");
+  clearInterval(S.callTimerInt);
+  S.activeCall = null;
+  S.callAnswered = false;
+  try { speechSynthesis.cancel(); } catch (e) {}
+}
+
+document.getElementById("btnAnswer").addEventListener("click", () => {
+  if (!S.activeCall) return;
+  S.callAnswered = true;
+  const phone = document.getElementById("phone");
+  phone.className = "phone answered";
+  document.getElementById("callState").textContent = "SECURE LINE — LIVE";
+  S.callStartTs = Date.now();
+  clearInterval(S.callTimerInt);
+  S.callTimerInt = setInterval(() => {
+    const s = Math.floor((Date.now() - S.callStartTs) / 1000);
+    document.getElementById("callTimer").textContent =
+      String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  }, 500);
+  speak(callScriptFor(S.activeCall));
+});
+
+document.getElementById("btnDecline").addEventListener("click", () => {
+  if (!S.activeCall) return;
+  S.dismissedCalls.add(S.activeCall);
+  closeCall();
+  document.getElementById("callBanner").classList.remove("show");
+});
+
+document.getElementById("btnYes").addEventListener("click", () => voiceDecision("approved"));
+document.getElementById("btnNo").addEventListener("click", () => voiceDecision("denied"));
+
+function voiceDecision(decision) {
+  if (!S.activeCall) return;
+  const aid = S.activeCall;
+  postDecision(aid, decision, "voice");
+  const phone = document.getElementById("phone");
+  phone.className = "phone ended";
+  document.getElementById("callState").textContent = decision === "approved" ? "DEPLOY AUTHORIZED" : "REQUEST DENIED";
+  document.getElementById("endMsg").textContent = "DECISION LOGGED — CALL ENDED";
+  speak(decision === "approved" ? "Confirmed. Deploying patch." : "Understood. Escalating to exception queue.");
+  setTimeout(closeCall, 1800);
+}
+
+document.getElementById("callBanner").addEventListener("click", () => {
+  if (S.activeCall) document.getElementById("callModal").classList.add("show");
+});
+document.getElementById("audioToggle").addEventListener("click", function () {
+  S.audioOn = !S.audioOn;
+  this.textContent = S.audioOn ? "AUDIO ON" : "AUDIO OFF";
+  this.classList.toggle("on", S.audioOn);
+  if (!S.audioOn) try { speechSynthesis.cancel(); } catch (e) {}
+});
+
+/* ---------- poll loop ---------- */
+async function poll() {
+  const [attacks, incidents, agents, reqs, decs, calls] = await Promise.all(FILES.map(fetchJsonl));
+  S.attacks = attacks;
+  S.incidents = indexLatest(incidents, "id");
+  S.agents = agents;
+  S.approvals = indexLatest(reqs, "id");
+  S.decisions = indexLatest(decs, "id");
+  S.calls = indexLatest(calls, "approval_id");
+
+  // reconcile local decisions once they appear in the file
+  for (const k of [...S.localDecisions.keys()]) if (S.decisions.has(k)) S.localDecisions.delete(k);
+
+  // map: draw arcs for new attacks
+  const firstLoad = S.seenAttacks === 0;
+  for (let i = S.seenAttacks; i < S.attacks.length; i++) addArc(S.attacks[i], !firstLoad);
+  if (S.attacks.length < S.seenAttacks) { // file rotated/truncated — rebuild
+    arcLayer.clearLayers();
+    S.attacks.forEach(a => addArc(a, false));
+  }
+  S.seenAttacks = S.attacks.length;
+  for (const inc of S.incidents.values()) incidentPin(inc);
+
+  renderMetrics(); renderIncidents(); renderAgents(); renderApprovals(); updateCallUI();
+
+  const stale = Date.now() - S.lastFetchOk > 4000;
+  document.getElementById("liveDot").classList.toggle("stale", stale);
+  document.getElementById("liveTxt").textContent = stale ? "STALE" : "LIVE";
+}
+
+/* clock */
+setInterval(() => {
+  document.getElementById("clock").textContent = new Date().toISOString().slice(11, 19) + " UTC";
+}, 250);
+
+if ("speechSynthesis" in window) speechSynthesis.getVoices(); // warm voice list
+initMap();
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
