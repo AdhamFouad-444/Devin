@@ -316,8 +316,10 @@ class Controller:
             self.incidents[iid] = line
             if line.get("status") == "triaged" and iid not in self.handled:
                 self.handle_triaged(line)
-            elif line.get("status") != "triaged":
-                self.handled.add(iid)  # never regress into re-handling
+            elif line.get("status") not in ("triaged", "open"):
+                # only post-triaged statuses mark handled — an "open" line must
+                # not block the "triaged" line that arrives in the same batch
+                self.handled.add(iid)
         for line in self.tails["requests"].read_new():
             rid = line.get("id")
             if rid:
