@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Falcon Shield — Pitch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0b0e11;
+    --panel: #11161b;
+    --line: #232b33;
+    --txt: #d6dde3;
+    --dim: #8b98a3;
+    --accent: #3fa34d;
+    --warn: #c9a227;
+    --alert: #c0392b;
+    --mono: "SFMono-Regular", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: "Inter", "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--txt); font-family: var(--sans); }
+  body { display: flex; flex-direction: column; }
+
+  /* ---------- chrome ---------- */
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 28px; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12px; letter-spacing: .08em;
+    color: var(--dim); text-transform: uppercase; flex: none;
+  }
+  header .mark { color: var(--accent); font-weight: 700; }
+  header .spacer { flex: 1; }
+  header .live { color: var(--alert); }
+  #counter { font-variant-numeric: tabular-nums; }
+
+  main { flex: 1; position: relative; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; justify-content: center;
+    padding: 48px 64px 80px; gap: 28px;
+  }
+  .slide.active { display: flex; }
+
+  .kicker {
+    font-family: var(--mono); font-size: 13px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--accent);
+    border-bottom: 1px solid var(--line); padding-bottom: 10px; width: fit-content;
+  }
+  h1 { font-size: 44px; line-height: 1.12; font-weight: 700; max-width: 980px; }
+  h1 .num { color: var(--warn); font-variant-numeric: tabular-nums; }
+  h1 .hl { color: var(--alert); }
+  .sub { font-size: 20px; color: var(--dim); max-width: 880px; line-height: 1.5; }
+  .sub b { color: var(--txt); }
+
+  blockquote {
+    border-left: 4px solid var(--accent); padding: 10px 0 10px 24px;
+    font-size: 26px; font-style: italic; color: var(--txt); max-width: 900px;
+  }
+
+  table { border-collapse: collapse; width: 100%; max-width: 1040px; font-size: 16px; }
+  th, td { border: 1px solid var(--line); padding: 12px 14px; text-align: left; vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+       color: var(--dim); background: var(--panel); }
+  td:first-child { font-family: var(--mono); font-size: 14px; color: var(--accent); white-space: nowrap; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 1040px; }
+  .card { border: 1px solid var(--line); background: var(--panel); padding: 16px; }
+  .card .role { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: var(--accent);
+                text-transform: uppercase; margin-bottom: 8px; }
+  .card p { font-size: 14px; color: var(--dim); line-height: 1.45; }
+  .card.star { border-color: var(--warn); }
+
+  ol.flow { list-style: none; display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+  ol.flow li {
+    display: flex; gap: 16px; align-items: baseline;
+    font-size: 19px; padding: 10px 14px;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  ol.flow .t { font-family: var(--mono); font-size: 13px; color: var(--warn);
+               min-width: 96px; font-variant-numeric: tabular-nums; }
+  ol.flow li em { color: var(--dim); font-style: normal; }
+
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1040px; }
+  .col h2 { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+            color: var(--dim); margin-bottom: 12px; }
+  .col.us h2 { color: var(--accent); }
+  .col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .col li { font-size: 15px; color: var(--dim); padding-left: 16px; position: relative; line-height: 1.4; }
+  .col li::before { content: "·"; color: var(--line); position: absolute; left: 4px; }
+  .col.us li { color: var(--txt); }
+  .col.us li::before { content: "▸"; color: var(--accent); }
+
+  .statline { display: flex; gap: 40px; flex-wrap: wrap; }
+  .stat { font-family: var(--mono); }
+  .stat .v { font-size: 34px; color: var(--warn); font-variant-numeric: tabular-nums; }
+  .stat .k { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-top: 4px; }
+
+  .fine { font-family: var(--mono); font-size: 11px; color: var(--dim); max-width: 980px; line-height: 1.6; }
+  .fine a { color: var(--dim); }
+
+  /* ---------- nav ---------- */
+  nav {
+    flex: none; display: flex; align-items: center; gap: 16px;
+    padding: 12px 28px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12px; color: var(--dim);
+  }
+  nav .dots { display: flex; gap: 8px; flex: 1; }
+  nav .dot { width: 32px; height: 4px; background: var(--line); cursor: pointer; }
+  nav .dot.on { background: var(--accent); }
+  nav kbd { border: 1px solid var(--line); padding: 2px 7px; font-family: var(--mono); font-size: 11px; }
+
+  @media (max-width: 900px) {
+    .slide { padding: 24px; }
+    h1 { font-size: 30px; }
+    .cards, .twocol { grid-template-columns: 1fr; }
+  }
+  @media print {
+    body { display: block; }
+    header, nav { display: none; }
+    .slide { position: static; display: flex; page-break-after: always; min-height: 100vh; }
+  }
+  @page { size: landscape; margin: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">FALCON SHIELD</span>
+  <span>Autonomous Defense Swarm · UAE Sector</span>
+  <span class="spacer"></span>
+  <span>Attacks/day against UAE — <span class="live" id="counter">416/sec</span></span>
+  <span id="slidenum">1 / 5</span>
+</header>
+
+<main>
+
+  <!-- 1 · THE PROBLEM -->
+  <section class="slide" data-title="The problem">
+    <div class="kicker">The problem</div>
+    <h1><span class="num">600,000</span> cyberattacks hit the UAE <span class="hl">every day</span>.<br>
+        That is <span class="num">~416 per second</span>.</h1>
+    <div class="sub">
+      Government is the <b>#1 target sector — 30% of all attacks</b>, ahead of banking (7%) —
+      UAE Cyber Security Council. Origins traced to groups across <b>14 countries</b>.
+      Attackers now <b>use AI</b> to strike faster and evade detection.
+    </div>
+    <div class="sub">
+      The math breaks the human model: no SOC on Earth staffs for 416 alerts a second.
+      Today: detect → alert → <b>humans triage → humans patch — in days</b>.
+    </div>
+    <blockquote>"There aren't enough humans. So we built a swarm."</blockquote>
+    <div class="fine">Sources: UAE Cybersecurity Chief via Khaleej Times &amp; Gulf News (Aug 2026) · UAE Cyber Security Council · The National (2026) — full citations in docs/pitch.md</div>
+  </section>
+
+  <!-- 2 · THE SWARM -->
+  <section class="slide" data-title="The swarm">
+    <div class="kicker">The system</div>
+    <h1>A swarm of agents that does the whole job —<br>not another dashboard that watches it fail.</h1>
+    <div class="cards">
+      <div class="card"><div class="role">Sentinel</div><p>Watches request logs, auth signals, rates. Raises structured incidents to an append-only event bus — the audit log.</p></div>
+      <div class="card"><div class="role">Triage</div><p>Classifies SQLi / brute-force / scan / DoS / CVE-probe. Scores severity. Dedupes noise.</p></div>
+      <div class="card"><div class="role">Containment</div><p>Reversible defense inside policy — block IPs, rate-limit, isolate — autonomously. Seconds, not tickets.</p></div>
+      <div class="card star"><div class="role">Patch ★</div><p>A Devin session traces the exploit to the vulnerable line, writes the fix, opens a real PR, proves the re-fired attack fails.</p></div>
+      <div class="card"><div class="role">Self-heal</div><p>Watches the platform itself — crashed service, bad deploy, config fault → diagnose, repair, verify.</p></div>
+      <div class="card"><div class="role">Comms</div><p>Calls the human by phone only when policy requires approval. Transcript lands in the audit log.</p></div>
+    </div>
+    <div class="sub">Bounded autonomy: observe &amp; contain → autonomous · deploy &amp; high-impact → <b>phone-approved</b> · offensive action → <b>prohibited</b>.</div>
+  </section>
+
+  <!-- 3 · THE DEMO -->
+  <section class="slide" data-title="The demo">
+    <div class="kicker">Live demo — 90 seconds</div>
+    <h1>A real attack wave. The swarm fights it.<br>Then it <span class="hl">calls me</span> to ask permission.</h1>
+    <ol class="flow">
+      <li><span class="t">0:00</span><span>Quiet dashboard. Counter reads <em>600,000 — attacks the UAE faces daily.</em></span></li>
+      <li><span class="t">0:12</span><span>SQL-injection wave fires at a mock citizen portal. Detected → triaged → contained. <em>Seconds. Zero human touches.</em></span></li>
+      <li><span class="t">0:35</span><span>A patch agent — a live Devin session — traces the exploit to the vulnerable line and opens a <em>real pull request</em>.</span></li>
+      <li><span class="t">0:52</span><span>Deploy is high-impact → the call panel rings: <em>"I've contained it and prepared the patch. Shall I deploy?"</em> One word: yes.</span></li>
+      <li><span class="t">1:08</span><span>Same attack re-fired — <em>BLOCKED at the code level</em>. MTTD in seconds. Human touches: 1.</span></li>
+    </ol>
+    <div class="sub">Every event — detection, decision, call transcript — is in the append-only audit log. 100% accountable.</div>
+  </section>
+
+  <!-- 4 · WHY THIS IS DIFFERENT -->
+  <section class="slide" data-title="Why different">
+    <div class="kicker">Why this isn't another SOC tool</div>
+    <h1>Existing tools alert and escalate.<br>Falcon Shield <span class="num">fixes the code</span>.</h1>
+    <div class="twocol">
+      <div class="col">
+        <h2>Today's stack — SOAR / SOC copilots</h2>
+        <ul>
+          <li>Detect → open ticket → page a human. Remediation waits hours–days.</li>
+          <li>Playbooks run fixed scripts — they can't write new code.</li>
+          <li>Approval = a checkbox buried in a console nobody watches.</li>
+          <li>Alert fatigue is the #1 documented SOC failure mode.</li>
+          <li>"AI-powered" = summarizing alerts for the same drowning humans.</li>
+        </ul>
+      </div>
+      <div class="col us">
+        <h2>Falcon Shield — engineering agents</h2>
+        <ul>
+          <li>Patch agents ship the actual fix as a reviewed pull request — verify by re-attack.</li>
+          <li>Autonomy is tiered by policy: reversible → autonomous; irreversible → a phone call.</li>
+          <li>The approval finds the human — a voice call with full context, not another alert.</li>
+          <li>The whole loop is one append-only audit log — every agent action attributable.</li>
+          <li>And the meta-proof: this system itself was built by a swarm of 6 Devin sessions in 35 minutes. Swarms build swarms.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · UAE ALIGNMENT / CLOSE -->
+  <section class="slide" data-title="Alignment & close">
+    <div class="kicker">UAE vision alignment · the ask</div>
+    <h1>More defenders.<br>Zero new hires.</h1>
+    <table>
+      <tr><th>UAE commitment</th><th>How Falcon Shield delivers it</th></tr>
+      <tr><td>National AI Strategy 2031</td><td>Cybersecurity is a named phase-1 sector; every autonomous action is policy-bounded and tamper-evident — governance Objective 8 in working code.</td></tr>
+      <tr><td>Abu Dhabi Digital Strategy 2025–27</td><td>Self-defending services are what AI-native government means; self-contained architecture fits the 100% sovereign-cloud pillar.</td></tr>
+      <tr><td>Dubai Universal Blueprint for AI</td><td>Mission Control is the Chief AI Officer's live view: every incident, every agent, every approval.</td></tr>
+      <tr><td>Cyber Security Council mission</td><td>The only architecture that scales to 600,000/day: autonomous defense with governed human oversight.</td></tr>
+    </table>
+    <div class="statline">
+      <div class="stat"><div class="v">416/s</div><div class="k">attacks, daily volume</div></div>
+      <div class="stat"><div class="v">1</div><div class="k">human touch per incident</div></div>
+      <div class="stat"><div class="v">0</div><div class="k">new hires</div></div>
+      <div class="stat"><div class="v">100%</div><div class="k">auditable</div></div>
+    </div>
+    <blockquote>"The swarm eats the volume. The human keeps the authority."</blockquote>
+  </section>
+
+</main>
+
+<nav>
+  <kbd>←</kbd><kbd>→</kbd><span>to navigate</span>
+  <span class="dots" id="dots"></span>
+  <span id="slidetitle"></span>
+</nav>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const dots = document.getElementById('dots');
+  let i = 0;
+  slides.forEach((s, n) => {
+    const d = document.createElement('span');
+    d.className = 'dot'; d.onclick = () => go(n);
+    dots.appendChild(d);
+  });
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+    document.getElementById('slidenum').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('slidetitle').textContent = slides[i].dataset.title || '';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') go(i + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(i - 1);
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(slides.length - 1);
+  });
+  // live attack counter — ticks ~416/sec feel without spamming the DOM
+  let attacks = 600000;
+  const counter = document.getElementById('counter');
+  setInterval(() => {
+    attacks += Math.round(416 * 0.5 + Math.random() * 60);
+    counter.textContent = attacks.toLocaleString() + ' today';
+  }, 500);
+  go(0);
+</script>
+</body>
+</html>
