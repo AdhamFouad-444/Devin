@@ -118,9 +118,7 @@ def service_detail(sid: str):
 @app.post("/login")
 def login(user: str = "", pass_: str = "", request: Request = None):
     # SEEDED-VULN:sqli — string-concatenated query, no parameterization
-    import re
     pass_ = request.query_params.get("pass", pass_)
-    user = re.sub(r"\s", "", user)
     q = f"SELECT name, emirates_id FROM users WHERE user='{user}' AND pass='{pass_}'"
     try:
         row = _db.execute(q).fetchone()
